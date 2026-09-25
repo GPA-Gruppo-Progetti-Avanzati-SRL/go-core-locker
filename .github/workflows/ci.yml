@@ -1,0 +1,21 @@
+name: ci
+
+# Caller di sei righe: la logica sta nel reusable workflow del repo ombrello, così i nove moduli
+# non hanno nove copie da tenere allineate. Per cambiare cosa gira, modificare
+# GPA-Gruppo-Progetti-Avanzati-SRL/go-core-ci → .github/workflows/module-ci.yml
+on:
+  push:
+    branches: [master]
+  pull_request:
+  # Notturna: govulncheck deve girare anche senza commit, perché una CVE nuova compare da sé.
+  # Minuti sfalsati fra le librerie per non far partire nove run nello stesso istante.
+  schedule:
+    - cron: '06 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: GPA-Gruppo-Progetti-Avanzati-SRL/go-core-ci/.github/workflows/module-ci.yml@master
