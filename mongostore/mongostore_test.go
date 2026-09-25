@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,42 +25,58 @@ const envURL = "MONGO_URL"
 
 var dbSeq atomic.Uint64
 
-// collections adatta un *mongo.Database all'interfaccia che lo store si aspettava dal Service.
-type collections struct{ db *mongo.Database }
+// La connessione si apre una volta per package. Con un client per test, un MONGO_URL impostato ma
+// irraggiungibile costava dieci secondi di attesa per ciascuno dei quattordici test prima di dire
+// la stessa cosa.
+var connect = sync.OnceValues(func() (*mongo.Client, error) {
+	uri := os.Getenv(envURL)
+	if uri == "" {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-func (c collections) GetCollection(name, _ string) *mongo.Collection { return c.db.Collection(name) }
+	cli, err := mongo.Connect(options.Client().ApplyURI(uri).SetServerSelectionTimeout(3 * time.Second))
+	if err != nil {
+		return nil, err
+	}
+	if err := cli.Ping(ctx, nil); err != nil {
+		return nil, err
+	}
+	return cli, nil
+})
+
+// database adatta un *mongo.Database all'interfaccia che lo store si aspetta dal Service.
+type database struct{ db *mongo.Database }
+
+func (d database) Db() *mongo.Database { return d.db }
 
 // newStore apre un database usa-e-getta e restituisce lo store insieme alla collection dei lease,
 // perché i test che devono sporcare un documento ci arrivino senza reinventare la connessione.
 func newStore(t *testing.T) (corelock.LeaseStore, *mongo.Collection) {
 	t.Helper()
 
-	uri := os.Getenv(envURL)
-	if uri == "" {
+	cli, err := connect()
+	if err != nil {
+		t.Fatalf("%s è impostata ma Mongo non risponde: %v", envURL, err)
+	}
+	if cli == nil {
 		t.Skipf("%s non impostata: il backend Mongo non è coperto in questa esecuzione", envURL)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cli, err := mongo.Connect(options.Client().ApplyURI(uri))
-	if err != nil {
-		t.Fatalf("connessione a Mongo: %v", err)
-	}
-	if err := cli.Ping(ctx, nil); err != nil {
-		t.Fatalf("ping di Mongo: %v", err)
-	}
-
 	dbName := fmt.Sprintf("corelock_test_%d_%d", time.Now().UnixNano(), dbSeq.Add(1))
 	db := cli.Database(dbName)
+	// Il client è condiviso fra i test: qui si butta via il solo database.
 	t.Cleanup(func() {
 		c, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = db.Drop(c)
-		_ = cli.Disconnect(c)
 	})
 
-	svc := collections{db: db}
+	svc := database{db: db}
 	if err := mongostore.EnsureSchema(ctx, svc, nil); err != nil {
 		t.Fatalf("EnsureSchema: %v", err)
 	}

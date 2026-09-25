@@ -16,15 +16,20 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// Collections è ciò che lo store usa del servizio Mongo: la sola collection dei lease. Dichiararla
-// qui invece di dipendere dal tipo concreto tiene il package fakeable nei test.
-type Collections interface {
-	GetCollection(collectionId string, writeConcern string) *mongo.Collection
+// Database è ciò che lo store usa del servizio Mongo.
+//
+// Non `GetCollection`, che risolve un id dichiarato in `mongo.collections` del config: la
+// collection dei lease **non è una collection dell'applicazione** — l'app non la legge mai, e il
+// suo nome è un knob di questa libreria (`services.lock.mongo.collection`). Pretenderne la
+// dichiarazione anche nel linked service sarebbe una seconda sede per la stessa scelta, e
+// romperebbe ogni applicazione che aggiorna senza toccare il proprio config.
+type Database interface {
+	Db() *mongo.Database
 }
 
 // Store è il LeaseStore su MongoDB.
 type Store struct {
-	svc        Collections
+	svc        Database
 	collection string
 }
 
@@ -33,7 +38,7 @@ type Store struct {
 // La collection si risolve a ogni operazione e non alla costruzione: il servizio Mongo non è
 // connesso quando fx costruisce il grafo, e legarsi lì costringeva a un hook di lifecycle e a un
 // errore "il locker non è ancora partito" che nessuno poteva gestire.
-func New(svc Collections, cfg *corelock.Config) corelock.LeaseStore {
+func New(svc Database, cfg *corelock.Config) corelock.LeaseStore {
 	c := (&corelock.Config{}).WithDefaults()
 	if cfg != nil {
 		c = cfg.WithDefaults()
@@ -42,12 +47,12 @@ func New(svc Collections, cfg *corelock.Config) corelock.LeaseStore {
 }
 
 func (s *Store) coll() (*mongo.Collection, *core.ApplicationError) {
-	c := s.svc.GetCollection(s.collection, "")
-	if c == nil {
+	db := s.svc.Db()
+	if db == nil {
 		return nil, core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).
-			WithMessage("collection '" + s.collection + "' non configurata nel linked service mongo")
+			WithMessage("il servizio Mongo non è connesso")
 	}
-	return c, nil
+	return db.Collection(s.collection), nil
 }
 
 // expiryOf è l'istante di scadenza del documento, per il confronto server-side.
@@ -176,7 +181,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 // con le chiavi viste una volta sola, e nessuno se ne accorge.
 //
 // È esplicita come la sua omologa SQL: modificare lo schema resta una scelta dell'applicazione.
-func EnsureSchema(ctx context.Context, svc Collections, cfg *corelock.Config) *core.ApplicationError {
+func EnsureSchema(ctx context.Context, svc Database, cfg *corelock.Config) *core.ApplicationError {
 	s, ok := New(svc, cfg).(*Store)
 	if !ok {
 		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).

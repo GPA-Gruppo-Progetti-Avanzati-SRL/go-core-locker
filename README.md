@@ -110,7 +110,10 @@ identica.
 | `redisstore` | una chiave con `PX` | `go-core-redis` (go-redis) |
 | `memstore` | una mappa nel processo | — |
 
-**mongo** — `FindOneAndUpdate` con upsert e la condizione di scadenza **dentro la pipeline**: MongoDB
+**mongo** — la collection dei lease si risolve dal `Db()` del Service, non da `GetCollection`: non è
+una collection dell'applicazione — l'app non la legge mai — e il suo nome è un knob di questa
+libreria, quindi pretenderne la dichiarazione anche in `mongo.collections` sarebbe una seconda sede
+per la stessa scelta. `FindOneAndUpdate` con upsert e la condizione di scadenza **dentro la pipeline**: MongoDB
 rifiuta `$expr` nel predicato di un upsert, e senza `$expr` non si può nominare `$$NOW`, cioè non si
 può far decidere al server. Spostandola nella pipeline il filtro resta il solo `_id`.
 `EnsureSchema` crea l'indice TTL.
