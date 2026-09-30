@@ -3,9 +3,9 @@ module github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-locker
 go 1.27.1
 
 require (
-	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app v0.0.29-0.20260930140542-5b06937a5101
-	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-mongo v0.0.20-0.20260930105625-aace142a2a35
-	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-sql v0.0.2-0.20260930105625-8efb2abc07d5
+	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app v0.0.29-0.20260930144830-cda97e2d1c58
+	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-mongo v0.0.20-0.20260930144830-f84943ee0ccd
+	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-sql v0.0.2-0.20260930144830-7b6f09e06608
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/uptrace/bun v1.2.18
