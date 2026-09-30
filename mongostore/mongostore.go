@@ -16,6 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
+var liberr = core.Errors{Ambit: corelock.Ambit}
+
 // Database è ciò che lo store usa del servizio Mongo.
 //
 // Non `GetCollection`, che risolve un id dichiarato in `mongo.collections` del config: la
@@ -49,7 +52,7 @@ func New(svc Database, cfg *corelock.Config) corelock.LeaseStore {
 func (s *Store) coll() (*mongo.Collection, *core.ApplicationError) {
 	db := s.svc.Db()
 	if db == nil {
-		return nil, core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).
+		return nil, liberr.Tech(corelock.CodeSchema).
 			WithMessage("il servizio Mongo non è connesso")
 	}
 	return db.Collection(s.collection), nil
@@ -133,7 +136,7 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 		if mongo.IsDuplicateKeyError(err) {
 			return corelock.ErrNotAcquired
 		}
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeAcquire).WithCause(err)
+		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	if doc.Owner != token {
 		return corelock.ErrNotAcquired
@@ -153,10 +156,10 @@ func (s *Store) Renew(ctx context.Context, key, token string, ttl time.Duration)
 
 	res, err := coll.UpdateOne(ctx, filter, setLease(token, ttl))
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).WithCause(err)
+		return liberr.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	if res.MatchedCount == 0 {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).
+		return liberr.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	return nil
@@ -169,7 +172,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 	}
 
 	if _, err := coll.DeleteOne(ctx, bson.M{"_id": key, "owner": token}); err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRelease).WithCause(err)
+		return liberr.Tech(corelock.CodeRelease).WithCause(err)
 	}
 	return nil
 }
@@ -184,7 +187,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 func EnsureSchema(ctx context.Context, svc Database, cfg *corelock.Config) *core.ApplicationError {
 	s, ok := New(svc, cfg).(*Store)
 	if !ok {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).
+		return liberr.Tech(corelock.CodeSchema).
 			WithMessage("store inatteso")
 	}
 	coll, aerr := s.coll()
@@ -197,7 +200,7 @@ func EnsureSchema(ctx context.Context, svc Database, cfg *corelock.Config) *core
 		Options: options.Index().SetExpireAfterSeconds(0).SetName("ix_lock_ttl"),
 	})
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).WithCause(err)
+		return liberr.Tech(corelock.CodeSchema).WithCause(err)
 	}
 	return nil
 }

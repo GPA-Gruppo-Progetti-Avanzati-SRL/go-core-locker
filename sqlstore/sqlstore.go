@@ -16,6 +16,9 @@ import (
 	"github.com/uptrace/bun/dialect"
 )
 
+// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
+var liberr = core.Errors{Ambit: corelock.Ambit}
+
 // lockRow è la riga di lease.
 //
 // `lock_key` e non `key`, che è parola riservata. La scadenza è un **intero di millisecondi** e non
@@ -90,11 +93,11 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 
 	res, err := q.Exec(ctx)
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeAcquire).WithCause(err)
+		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeAcquire).WithCause(err)
+		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	if n == 0 {
 		return corelock.ErrNotAcquired
@@ -115,14 +118,14 @@ func (s *Store) Renew(ctx context.Context, key, token string, ttl time.Duration)
 		Where("expires_at_ms > " + now).
 		Exec(ctx)
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).WithCause(err)
+		return liberr.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).WithCause(err)
+		return liberr.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	if n == 0 {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).
+		return liberr.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	return nil
@@ -135,7 +138,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 		Where("owner = ?", token).
 		Exec(ctx)
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRelease).WithCause(err)
+		return liberr.Tech(corelock.CodeRelease).WithCause(err)
 	}
 	return nil
 }
@@ -153,7 +156,7 @@ func EnsureSchema(ctx context.Context, db *bun.DB, cfg *corelock.Config) *core.A
 		ModelTableExpr("?", bun.Ident(c.Sql.Table)).
 		IfNotExists().Exec(ctx)
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeSchema).WithCause(err)
+		return liberr.Tech(corelock.CodeSchema).WithCause(err)
 	}
 	return nil
 }

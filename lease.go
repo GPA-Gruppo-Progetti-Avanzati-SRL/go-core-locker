@@ -10,6 +10,9 @@ import (
 	core "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app"
 )
 
+// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
+var liberr = core.Errors{Ambit: Ambit}
+
 // Default del motore. Sono del motore e non dei backend perché lo stesso YAML deve comportarsi
 // allo stesso modo su Mongo, SQL e Redis: prima ogni backend aveva i suoi, e il retry delay di uno
 // era un intervallo casuale mentre negli altri era una costante.
@@ -134,7 +137,7 @@ func (h *leaseHandle) Release(ctx context.Context) error {
 func newToken() (string, error) {
 	b := make([]byte, tokenBytes)
 	if _, err := rand.Read(b); err != nil {
-		return "", core.TechnicalError().WithAmbit(Ambit).WithCode(CodeToken).WithCause(err)
+		return "", liberr.Tech(CodeToken).WithCause(err)
 	}
 	return hex.EncodeToString(b), nil
 }

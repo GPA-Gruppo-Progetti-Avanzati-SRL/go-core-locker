@@ -26,6 +26,9 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 )
 
+// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
+var liberr = core.Errors{Ambit: corelock.Ambit}
+
 // I due script confrontano il token prima di agire: è ciò che impedisce a un proprietario di
 // rinnovare o liberare il lock di un altro. Sono atomici per costruzione, essendo script.
 var (
@@ -58,7 +61,7 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 	// chiave scaduta non esiste più, quindi "libera o scaduta" è la stessa condizione.
 	ok, err := s.client.SetNX(ctx, key, token, ttl).Result()
 	if err != nil {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeAcquire).WithCause(err)
+		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	if !ok {
 		return corelock.ErrNotAcquired
@@ -69,10 +72,10 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 func (s *Store) Renew(ctx context.Context, key, token string, ttl time.Duration) error {
 	res, err := renewScript.Run(ctx, s.client, []string{key}, token, ttl.Milliseconds()).Int64()
 	if err != nil && !errors.Is(err, goredis.Nil) {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).WithCause(err)
+		return liberr.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	if res != 1 {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRenew).
+		return liberr.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	return nil
@@ -83,7 +86,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 	// l'unico sito di chiamata è un defer che non avrebbe alternative da scegliere.
 	if _, err := releaseScript.Run(ctx, s.client, []string{key}, token).Int64(); err != nil &&
 		!errors.Is(err, goredis.Nil) {
-		return core.TechnicalError().WithAmbit(corelock.Ambit).WithCode(corelock.CodeRelease).WithCause(err)
+		return liberr.Tech(corelock.CodeRelease).WithCause(err)
 	}
 	return nil
 }
