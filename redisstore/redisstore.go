@@ -21,13 +21,14 @@ import (
 	"errors"
 	"time"
 
-	core "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app"
+	"github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app"
+
 	corelock "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-locker"
 	goredis "github.com/redis/go-redis/v9"
 )
 
-// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
-var liberr = core.Errors{Ambit: corelock.Ambit}
+// errs costruisce gli errori del package con l'ambito della libreria (vedi core.AmbitErrors).
+var errs = core.AmbitErrors{Ambit: corelock.Ambit}
 
 // I due script confrontano il token prima di agire: è ciò che impedisce a un proprietario di
 // rinnovare o liberare il lock di un altro. Sono atomici per costruzione, essendo script.
@@ -61,7 +62,7 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 	// chiave scaduta non esiste più, quindi "libera o scaduta" è la stessa condizione.
 	ok, err := s.client.SetNX(ctx, key, token, ttl).Result()
 	if err != nil {
-		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
+		return errs.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	if !ok {
 		return corelock.ErrNotAcquired
@@ -72,10 +73,10 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 func (s *Store) Renew(ctx context.Context, key, token string, ttl time.Duration) error {
 	res, err := renewScript.Run(ctx, s.client, []string{key}, token, ttl.Milliseconds()).Int64()
 	if err != nil && !errors.Is(err, goredis.Nil) {
-		return liberr.Tech(corelock.CodeRenew).WithCause(err)
+		return errs.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	if res != 1 {
-		return liberr.Tech(corelock.CodeRenew).
+		return errs.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	return nil
@@ -86,7 +87,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 	// l'unico sito di chiamata è un defer che non avrebbe alternative da scegliere.
 	if _, err := releaseScript.Run(ctx, s.client, []string{key}, token).Int64(); err != nil &&
 		!errors.Is(err, goredis.Nil) {
-		return liberr.Tech(corelock.CodeRelease).WithCause(err)
+		return errs.Tech(corelock.CodeRelease).WithCause(err)
 	}
 	return nil
 }

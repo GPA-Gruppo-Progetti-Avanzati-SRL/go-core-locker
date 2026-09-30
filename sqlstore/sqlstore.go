@@ -9,15 +9,16 @@ import (
 	"context"
 	"time"
 
-	core "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app"
+	"github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-app"
+
 	corelock "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-locker"
 	coresql "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-sql"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
 )
 
-// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
-var liberr = core.Errors{Ambit: corelock.Ambit}
+// errs costruisce gli errori del package con l'ambito della libreria (vedi core.AmbitErrors).
+var errs = core.AmbitErrors{Ambit: corelock.Ambit}
 
 // lockRow è la riga di lease.
 //
@@ -93,11 +94,11 @@ func (s *Store) TryAcquire(ctx context.Context, key, token string, ttl time.Dura
 
 	res, err := q.Exec(ctx)
 	if err != nil {
-		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
+		return errs.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return liberr.Tech(corelock.CodeAcquire).WithCause(err)
+		return errs.Tech(corelock.CodeAcquire).WithCause(err)
 	}
 	if n == 0 {
 		return corelock.ErrNotAcquired
@@ -118,14 +119,14 @@ func (s *Store) Renew(ctx context.Context, key, token string, ttl time.Duration)
 		Where("expires_at_ms > " + now).
 		Exec(ctx)
 	if err != nil {
-		return liberr.Tech(corelock.CodeRenew).WithCause(err)
+		return errs.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return liberr.Tech(corelock.CodeRenew).WithCause(err)
+		return errs.Tech(corelock.CodeRenew).WithCause(err)
 	}
 	if n == 0 {
-		return liberr.Tech(corelock.CodeRenew).
+		return errs.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	return nil
@@ -138,7 +139,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 		Where("owner = ?", token).
 		Exec(ctx)
 	if err != nil {
-		return liberr.Tech(corelock.CodeRelease).WithCause(err)
+		return errs.Tech(corelock.CodeRelease).WithCause(err)
 	}
 	return nil
 }
@@ -147,7 +148,7 @@ func (s *Store) Release(ctx context.Context, key, token string) error {
 //
 // È esplicita e non automatica al boot: creare tabelle è una modifica allo schema, e dove le
 // migrazioni sono governate deve restare una scelta di chi le governa.
-func EnsureSchema(ctx context.Context, db *bun.DB, cfg *corelock.Config) *core.ApplicationError {
+func EnsureSchema(ctx context.Context, db *bun.DB, cfg *corelock.Config) *core.Error {
 	c := (&corelock.Config{}).WithDefaults()
 	if cfg != nil {
 		c = cfg.WithDefaults()
@@ -156,7 +157,7 @@ func EnsureSchema(ctx context.Context, db *bun.DB, cfg *corelock.Config) *core.A
 		ModelTableExpr("?", bun.Ident(c.Sql.Table)).
 		IfNotExists().Exec(ctx)
 	if err != nil {
-		return liberr.Tech(corelock.CodeSchema).WithCause(err)
+		return errs.Tech(corelock.CodeSchema).WithCause(err)
 	}
 	return nil
 }

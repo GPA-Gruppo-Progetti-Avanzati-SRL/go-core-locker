@@ -19,8 +19,8 @@ import (
 	corelock "github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-locker"
 )
 
-// liberr costruisce gli errori del package con l'ambito della libreria (vedi core.Errors).
-var liberr = core.Errors{Ambit: corelock.Ambit}
+// errs costruisce gli errori del package con l'ambito della libreria (vedi core.AmbitErrors).
+var errs = core.AmbitErrors{Ambit: corelock.Ambit}
 
 // Module registra il backend in-process. Si passa a corelock.WithBackend per riferimento diretto:
 //
@@ -90,7 +90,7 @@ func (s *Store) Renew(_ context.Context, key, token string, ttl time.Duration) e
 
 	l, held := s.heldLocked(key)
 	if !held || l.token != token {
-		return liberr.Tech(corelock.CodeRenew).
+		return errs.Tech(corelock.CodeRenew).
 			WithMessage("lease non più posseduto: " + key).WithCause(corelock.ErrLockLost)
 	}
 	s.leases[key] = lease{token: token, expiresAt: s.now().Add(ttl)}

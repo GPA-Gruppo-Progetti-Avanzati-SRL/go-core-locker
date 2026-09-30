@@ -1,7 +1,7 @@
 package corelock
 
 // Ambit è l'ambito degli errori nati dentro questa libreria. Va messo con WithAmbit su ogni
-// ApplicationError costruito qui: i costruttori base riempiono Ambit con l'AppName, cioè con
+// core.Error costruito qui: i costruttori base riempiono Ambit con l'AppName, cioè con
 // l'applicazione che riceve l'errore, e senza sovrascriverlo un guasto della libreria si
 // presenterebbe come un errore dell'applicazione.
 const Ambit = "go-core-locker"
