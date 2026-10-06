@@ -8,8 +8,8 @@ require (
 	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-sql v0.0.2-0.20261001085812-19150dfd11af
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/redis/go-redis/v9 v9.22.0
-	github.com/uptrace/bun v1.2.18
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
+	github.com/uptrace/bun v1.3.0
+	github.com/uptrace/bun/dialect/sqlitedialect v1.3.0
 	go.mongodb.org/mongo-driver/v2 v2.8.0
 	modernc.org/sqlite v1.59.0
 )
@@ -60,7 +60,7 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun/extra/bunotel v1.2.18 // indirect
+	github.com/uptrace/bun/extra/bunotel v1.3.0 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
