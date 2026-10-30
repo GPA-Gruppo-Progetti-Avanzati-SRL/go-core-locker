@@ -19,4 +19,7 @@ const (
 	CodeToken = "LOCK-TOKEN"
 	// CodeSchema — la creazione di collection/tabella o dei loro indici è fallita.
 	CodeSchema = "LOCK-SCHEMA"
+	// CodeDialect: il backend SQL scelto non è quello del database (sqlstore su Oracle, oraclestore
+	// altrove). È un errore di avvio, che nomina il package giusto.
+	CodeDialect = "LOCK-SQL-DIALECT"
 )

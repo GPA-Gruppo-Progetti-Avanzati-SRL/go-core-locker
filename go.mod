@@ -8,7 +8,9 @@ require (
 	github.com/GPA-Gruppo-Progetti-Avanzati-SRL/go-core-sql v0.0.2-0.20261022100826-09c3d83b7a7f
 	github.com/alicebob/miniredis/v2 v2.39.0
 	github.com/redis/go-redis/v9 v9.22.0
+	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/uptrace/bun v1.3.0
+	github.com/uptrace/bun/dialect/oracledialect v1.3.0
 	github.com/uptrace/bun/dialect/sqlitedialect v1.3.0
 	go.mongodb.org/mongo-driver/v2 v2.8.0
 	modernc.org/sqlite v1.60.1

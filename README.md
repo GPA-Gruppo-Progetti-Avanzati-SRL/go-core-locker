@@ -106,7 +106,8 @@ identica.
 | Package | Dove vivono i lease | Dipendenza |
 |---|---|---|
 | `mongostore` | un documento per chiave | `go-core-mongo` |
-| `sqlstore` | una riga per chiave | `go-core-sql` (bun) |
+| `sqlstore` | una riga per chiave (PostgreSQL, MySQL, SQLite) | `go-core-sql` (bun) |
+| `oraclestore` | una riga per chiave (Oracle 19c+) | `go-core-sql` (bun) |
 | `redisstore` | una chiave con `PX` | `go-core-redis` (go-redis) |
 | `memstore` | una mappa nel processo | — |
 
@@ -123,6 +124,16 @@ timestamp e `CURRENT_TIMESTAMP` non è portabile — su SQLite bun scrive l'ista
 non si confronta lessicograficamente — mentre due interi si confrontano allo stesso modo ovunque.
 `EnsureSchema` crea la tabella, ed è esplicita: modificare lo schema resta una scelta di chi governa
 le migrazioni.
+`sqlstore` regge PostgreSQL, SQLite e MySQL; **Oracle dalla 19c** ha il suo package, `oraclestore`,
+così un'app Postgres non compila il codice Oracle e viceversa (il motore comune — riga, `Renew`,
+`Release` — sta in `internal/sqllease`; lo verifica `isolation_test.go`). Il backend sbagliato per il
+database è un errore di avvio, `LOCK-SQL-DIALECT`. Su Oracle l'upsert condizionato è una
+`MERGE` (non c'è `ON CONFLICT`), l'istante corrente in millisecondi si ricava da
+`SYS_EXTRACT_UTC(SYSTIMESTAMP)`, e due `MERGE` concorrenti sulla stessa chiave nuova danno
+`ORA-00001`, che vale `ErrNotAcquired`. Le colonne si scrivono quotate (`bun.Ident`) in tutti i
+dialetti: bun quota ciò che crea dal modello, e su Oracle un nome quotato è case-sensitive.
+`EnsureSchema` su Oracle non usa `IF NOT EXISTS` (arriva con la 23ai) e tratta `ORA-00955` come
+"esiste già".
 
 **redis** — `SET NX PX` e due script Lua per rinnovo e rilascio. **Non usa redsync**: con un solo
 client `redsync.New(pool)` non esegue Redlock, fa un `SET NX` — la dipendenza non comprava il quorum
@@ -145,11 +156,12 @@ altrui, scadenza, `Extend` che mantiene e `Extend` su lock perso, retry che ries
 context annullato.
 
 Gira **sempre** su `memstore`, su SQLite per `sqlstore` e su miniredis per `redisstore`; per
-`mongostore` serve un database:
+`mongostore` e `oraclestore` serve un database:
 
 ```bash
 go test ./...                                                    # mem, sql, redis
 MONGO_URL=mongodb://localhost:27017 go test ./mongostore/...     # mongo
+ORACLE_URL=oracle://system:pw@localhost:1521/XEPDB1 go test ./oraclestore/...   # oracle (19c/21c)
 ```
 
 Esiste perché i tre backend storici non avevano **alcun** test sulla semantica del lock, e infatti

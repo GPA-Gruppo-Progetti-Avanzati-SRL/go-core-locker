@@ -12,6 +12,7 @@ dell'applicazione.
 | `LOCK-RELEASE` | `corelock.CodeRelease` | i backend | il rilascio è fallito per un guasto del backend |
 | `LOCK-TOKEN` | `corelock.CodeToken` | `lease.go` | la generazione del token di proprietà non è riuscita |
 | `LOCK-SCHEMA` | `corelock.CodeSchema` | `EnsureSchema`, risoluzione della collection | creazione di tabella/indice fallita, o collection non configurata |
+| `LOCK-SQL-DIALECT` | `corelock.CodeDialect` | `sqlstore.New`, `oraclestore.New` | il backend SQL non è quello del database: `sqlstore` è per PostgreSQL/MySQL/SQLite, `oraclestore` per Oracle 19c+. Errore di **avvio**, invece di un fallimento al primo `TryAcquire` |
 
 ## Le due sentinelle non sono guasti
 
